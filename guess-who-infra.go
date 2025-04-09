@@ -1,14 +1,22 @@
 package main
 
 import (
+	"os"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	// "github.com/aws/aws-cdk-go/awscdk/v2/awssqs"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
+	"github.com/joho/godotenv"
+)
+
+const (
+	AppName = "GuessWho"
 )
 
 type GuessWhoInfraStackProps struct {
 	awscdk.StackProps
+	Environment string
 }
 
 func NewGuessWhoInfraStack(scope constructs.Construct, id string, props *GuessWhoInfraStackProps) awscdk.Stack {
@@ -18,12 +26,42 @@ func NewGuessWhoInfraStack(scope constructs.Construct, id string, props *GuessWh
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-	// The code that defines your stack goes here
+	infra := NewInfra(stack, props.Environment)
 
-	// example resource
-	// queue := awssqs.NewQueue(stack, jsii.String("GuessWhoInfraQueue"), &awssqs.QueueProps{
-	// 	VisibilityTimeout: awscdk.Duration_Seconds(jsii.Number(300)),
-	// })
+	usersTable := infra.CreateDynamoTable(
+		"Users",
+		&awsdynamodb.Attribute{
+			Name: jsii.String("id"),
+			Type: awsdynamodb.AttributeType_STRING,
+		},
+		nil)
+
+	gameTable := infra.CreateDynamoTable(
+		"Game",
+		&awsdynamodb.Attribute{
+			Name: jsii.String("id"),
+			Type: awsdynamodb.AttributeType_STRING,
+		},
+		nil)
+
+	playerTable := infra.CreateDynamoTable(
+		"Player",
+		&awsdynamodb.Attribute{
+			Name: jsii.String("gameId"),
+			Type: awsdynamodb.AttributeType_STRING,
+		},
+		&awsdynamodb.Attribute{
+			Name: jsii.String("id"),
+			Type: awsdynamodb.AttributeType_STRING,
+		})
+
+	lambda := infra.CreateLambda(AppName + "Lambda")
+
+	usersTable.GrantReadWriteData(lambda)
+	gameTable.GrantReadWriteData(lambda)
+	playerTable.GrantReadWriteData(lambda)
+
+	infra.CreateApiGateway(AppName+"Api", lambda)
 
 	return stack
 }
@@ -31,40 +69,40 @@ func NewGuessWhoInfraStack(scope constructs.Construct, id string, props *GuessWh
 func main() {
 	defer jsii.Close()
 
+	if err := godotenv.Load(); err != nil {
+		panic("Error loading .env file")
+	}
+
 	app := awscdk.NewApp(nil)
 
-	NewGuessWhoInfraStack(app, "GuessWhoInfraStack", &GuessWhoInfraStackProps{
-		awscdk.StackProps{
+	NewGuessWhoInfraStack(app, AppName+"InfraStackDev", &GuessWhoInfraStackProps{
+		StackProps: awscdk.StackProps{
 			Env: env(),
 		},
+		Environment: "Dev",
+	})
+
+	NewGuessWhoInfraStack(app, AppName+"InfraStackProd", &GuessWhoInfraStackProps{
+		StackProps: awscdk.StackProps{
+			Env: env(),
+		},
+		Environment: "Prod",
+	})
+
+	NewPipelineStack(app, AppName+"PipelineStack", &PipelineStackProps{
+		StackProps: awscdk.StackProps{
+			Env: env(),
+		},
+		GitHubOwner: os.Getenv("GITHUB_OWNER"),
+		GitHubRepo:  os.Getenv("GITHUB_REPO"),
 	})
 
 	app.Synth(nil)
 }
 
-// env determines the AWS environment (account+region) in which our stack is to
-// be deployed. For more information see: https://docs.aws.amazon.com/cdk/latest/guide/environments.html
 func env() *awscdk.Environment {
-	// If unspecified, this stack will be "environment-agnostic".
-	// Account/Region-dependent features and context lookups will not work, but a
-	// single synthesized template can be deployed anywhere.
-	//---------------------------------------------------------------------------
-	return nil
-
-	// Uncomment if you know exactly what account and region you want to deploy
-	// the stack to. This is the recommendation for production stacks.
-	//---------------------------------------------------------------------------
-	// return &awscdk.Environment{
-	//  Account: jsii.String("123456789012"),
-	//  Region:  jsii.String("us-east-1"),
-	// }
-
-	// Uncomment to specialize this stack for the AWS Account and Region that are
-	// implied by the current CLI configuration. This is recommended for dev
-	// stacks.
-	//---------------------------------------------------------------------------
-	// return &awscdk.Environment{
-	//  Account: jsii.String(os.Getenv("CDK_DEFAULT_ACCOUNT")),
-	//  Region:  jsii.String(os.Getenv("CDK_DEFAULT_REGION")),
-	// }
+	return &awscdk.Environment{
+		Account: jsii.String(os.Getenv("AWS_CDK_DEFAULT_ACCOUNT")),
+		Region:  jsii.String(os.Getenv("AWS_CDK_DEFAULT_REGION")),
+	}
 }
