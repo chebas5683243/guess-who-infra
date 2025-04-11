@@ -48,6 +48,8 @@ func NewPipelineNestedStack(scope constructs.Construct, id string, props *Pipeli
 	}
 
 	awscdk.NewNestedStack_Override(nestedStack, scope, jsii.String("PipelineNestedStack"), &props.NestedStackProps)
+	nestedStack.stacks = props.Stacks
+	nestedStack.githubConfig = props.GithubConfig
 
 	return nestedStack
 }
@@ -137,7 +139,7 @@ func (nestedStack *PipelineNestedStack) createBuildStage() {
 }
 
 func (nestedStack *PipelineNestedStack) createDevelopmentStage() {
-	devDeployAction := nestedStack.createDeploymentAction(environment.Development)
+	devDeployAction := nestedStack.createDeploymentAction(environment.Development, nil)
 
 	nestedStack.pipeline.AddStage(&awscodepipeline.StageOptions{
 		StageName: jsii.String("Development"),
@@ -146,10 +148,11 @@ func (nestedStack *PipelineNestedStack) createDevelopmentStage() {
 }
 
 func (nestedStack *PipelineNestedStack) createProductionStage() {
-	prodDeployAction := nestedStack.createDeploymentAction(environment.Development)
+	prodDeployAction := nestedStack.createDeploymentAction(environment.Production, jsii.Number(2))
 	approvalAction := awscodepipelineactions.NewManualApprovalAction(
 		&awscodepipelineactions.ManualApprovalActionProps{
 			ActionName: jsii.String("ProductionApproval"),
+			RunOrder:   jsii.Number(1),
 		})
 
 	nestedStack.pipeline.AddStage(&awscodepipeline.StageOptions{
@@ -158,7 +161,7 @@ func (nestedStack *PipelineNestedStack) createProductionStage() {
 	})
 }
 
-func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.Environment) awscodepipelineactions.CodeBuildAction {
+func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.Environment, runOrder *float64) awscodepipelineactions.CodeBuildAction {
 	deployProjectName := nestedStack.generateStackResourceName(string(env) + "DeployProject")
 	environmentStack := nestedStack.getEnvironmentStackFromEnv(env)
 
@@ -176,7 +179,7 @@ func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.E
 							"aws lambda update-function-code " +
 								"--function-name " + *environmentStack.Lambda.FunctionName() +
 								"--s3-bucket " + *nestedStack.buildOutput.BucketName() +
-								"--s3-key " + "build/boostrap",
+								"--s3-key " + "build/bootstrap",
 						},
 					},
 				},
@@ -196,6 +199,7 @@ func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.E
 		ActionName: jsii.String("DeployToLambda"),
 		Project:    deployProject,
 		Input:      nestedStack.buildOutput,
+		RunOrder:   runOrder,
 	})
 }
 
