@@ -26,6 +26,11 @@ type DynamoDBTableProps struct {
 	GlobalSecondaryIndexes *[]*awsdynamodb.GlobalSecondaryIndexPropsV2
 }
 
+type DynamoDBTable struct {
+	awsdynamodb.TableV2
+	baseName *string
+}
+
 func NewDynamoDBConstruct(scope constructs.Construct, id string, props *DynamoDbConstructProps) *DynamoDBConstruct {
 	construct := &DynamoDBConstruct{}
 	constructs.NewConstruct_Override(construct, scope, &id)
@@ -38,7 +43,7 @@ func NewDynamoDBConstruct(scope constructs.Construct, id string, props *DynamoDb
 	return construct
 }
 
-func (d *DynamoDBConstruct) CreateTable(props *DynamoDBTableProps) awsdynamodb.TableV2 {
+func (d *DynamoDBConstruct) CreateTable(props *DynamoDBTableProps) *DynamoDBTable {
 	if props == nil {
 		panic("dynamoDB table configuration missing")
 	}
@@ -49,7 +54,7 @@ func (d *DynamoDBConstruct) CreateTable(props *DynamoDBTableProps) awsdynamodb.T
 
 	tableName := config.StackName + "__" + *props.TableName + d.env
 
-	return awsdynamodb.NewTableV2(d, &tableName, &awsdynamodb.TablePropsV2{
+	table := awsdynamodb.NewTableV2(d, &tableName, &awsdynamodb.TablePropsV2{
 		TableName:              &tableName,
 		PartitionKey:           props.PartitionKey,
 		SortKey:                props.SortKey,
@@ -57,11 +62,16 @@ func (d *DynamoDBConstruct) CreateTable(props *DynamoDBTableProps) awsdynamodb.T
 		GlobalSecondaryIndexes: props.GlobalSecondaryIndexes,
 		Billing:                awsdynamodb.Billing_OnDemand(nil),
 	})
+
+	return &DynamoDBTable{
+		TableV2:  table,
+		baseName: props.TableName,
+	}
 }
 
-func (d *DynamoDBConstruct) GrantAccessToLambda(table awsdynamodb.TableV2, lambda awslambda.Function) {
+func (d *DynamoDBConstruct) GrantAccessToLambda(table *DynamoDBTable, lambda awslambda.Function) {
 	table.GrantReadWriteData(lambda)
 
-	tableEnvVariable := *table.TableName() + "_TABLE"
+	tableEnvVariable := *table.baseName + "_TABLE"
 	lambda.AddEnvironment(&tableEnvVariable, table.TableName(), nil)
 }

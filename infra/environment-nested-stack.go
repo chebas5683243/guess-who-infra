@@ -22,7 +22,6 @@ type EnvironmentNestedStack struct {
 	awscdk.NestedStack
 	env    environment.Environment
 	Lambda awslambda.Function
-	Tables []awsdynamodb.TableV2
 }
 
 func NewEnvironmentNestedStack(scope constructs.Construct, props *EnvironmentNestedStackProps) *EnvironmentNestedStack {
@@ -102,8 +101,6 @@ func (nestedStack *EnvironmentNestedStack) createDynamoTables() {
 	ddbConstruct.GrantAccessToLambda(usersTable, nestedStack.Lambda)
 	ddbConstruct.GrantAccessToLambda(gamesTable, nestedStack.Lambda)
 	ddbConstruct.GrantAccessToLambda(playersTable, nestedStack.Lambda)
-
-	nestedStack.Tables = []awsdynamodb.TableV2{usersTable, gamesTable, playersTable}
 }
 
 func (nestedStack *EnvironmentNestedStack) createApiGateway() {

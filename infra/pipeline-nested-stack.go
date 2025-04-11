@@ -211,6 +211,8 @@ func (nestedStack *PipelineNestedStack) getEnvironmentStackFromEnv(env environme
 		environmentStack = nestedStack.stacks.Development
 	case environment.Production:
 		environmentStack = nestedStack.stacks.Production
+	default:
+		panic("Unknown environment: " + string(env))
 	}
 
 	return environmentStack
