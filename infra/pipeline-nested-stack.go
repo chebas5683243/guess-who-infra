@@ -1,6 +1,8 @@
 package infra
 
 import (
+	"strings"
+
 	"github.com/chebas5683243/guess-who-infra/config"
 	"github.com/chebas5683243/guess-who-infra/environment"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscodepipeline"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscodepipelineactions"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
+	"github.com/aws/aws-cdk-go/awscdk/v2/awss3"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 )
@@ -33,11 +36,12 @@ type PipelineNestedStackProps struct {
 
 type PipelineNestedStack struct {
 	awscdk.NestedStack
-	githubConfig GithubConfig
-	stacks       Stacks
-	pipeline     awscodepipeline.Pipeline
-	sourceOutput awscodepipeline.Artifact
-	buildOutput  awscodepipeline.Artifact
+	githubConfig   GithubConfig
+	stacks         Stacks
+	pipeline       awscodepipeline.Pipeline
+	artifactBucket awss3.Bucket
+	sourceOutput   awscodepipeline.Artifact
+	buildOutput    awscodepipeline.Artifact
 }
 
 func NewPipelineNestedStack(scope constructs.Construct, id string, props *PipelineNestedStackProps) *PipelineNestedStack {
@@ -63,9 +67,15 @@ func (nestedStack *PipelineNestedStack) CreateInfraestructure() {
 }
 
 func (nestedStack *PipelineNestedStack) createPipeline() {
+	bucketName := strings.ToLower(nestedStack.generateStackResourceName("ArtifactBucket"))
+	nestedStack.artifactBucket = awss3.NewBucket(nestedStack, &bucketName, &awss3.BucketProps{
+		BucketName: &bucketName,
+	})
+
 	pipelineName := nestedStack.generateStackResourceName("Pipeline")
 	nestedStack.pipeline = awscodepipeline.NewPipeline(nestedStack, &pipelineName, &awscodepipeline.PipelineProps{
-		PipelineName: &pipelineName,
+		PipelineName:   &pipelineName,
+		ArtifactBucket: nestedStack.artifactBucket,
 	})
 }
 
@@ -98,7 +108,7 @@ func (nestedStack *PipelineNestedStack) createBuildStage() {
 		&awscodebuild.PipelineProjectProps{
 			ProjectName: &buildProjectName,
 			Environment: &awscodebuild.BuildEnvironment{
-				BuildImage: awscodebuild.LinuxBuildImage_STANDARD_5_0(),
+				BuildImage: awscodebuild.LinuxBuildImage_STANDARD_7_0(),
 			},
 			BuildSpec: awscodebuild.BuildSpec_FromObject(&map[string]any{
 				"version": "0.2",
@@ -178,8 +188,8 @@ func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.E
 						"commands": []string{
 							"aws lambda update-function-code " +
 								"--function-name " + *environmentStack.Lambda.FunctionName() +
-								"--s3-bucket " + *nestedStack.buildOutput.BucketName() +
-								"--s3-key " + "build/bootstrap",
+								" --s3-bucket " + *nestedStack.artifactBucket.BucketName() +
+								" --s3-key " + "build/bootstrap",
 						},
 					},
 				},
