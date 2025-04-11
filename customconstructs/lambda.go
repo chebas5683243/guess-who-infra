@@ -1,9 +1,9 @@
 package customconstructs
 
 import (
+	"github.com/chebas5683243/guess-who-infra/config"
 	"github.com/chebas5683243/guess-who-infra/environment"
 
-	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awss3assets"
 	"github.com/aws/constructs-go/constructs/v10"
@@ -45,8 +45,7 @@ func (l *LambdaConstruct) CreateGoFunction(props *LambdaFunctionProps) awslambda
 		panic("missing function name for lambda function")
 	}
 
-	stack := awscdk.Stack_Of(l)
-	functionName := *stack.StackName() + "__" + *props.FunctionName + l.env
+	functionName := config.StackName + "__" + *props.FunctionName + l.env
 
 	return awslambda.NewFunction(l, &functionName, &awslambda.FunctionProps{
 		FunctionName: &functionName,

@@ -1,9 +1,9 @@
 package customconstructs
 
 import (
+	"github.com/chebas5683243/guess-who-infra/config"
 	"github.com/chebas5683243/guess-who-infra/environment"
 
-	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awslambda"
 	"github.com/aws/constructs-go/constructs/v10"
@@ -47,8 +47,7 @@ func (d *DynamoDBConstruct) CreateTable(props *DynamoDBTableProps) awsdynamodb.T
 		panic("missing table name for dynamodb table")
 	}
 
-	stack := awscdk.Stack_Of(d)
-	tableName := *stack.StackName() + "__" + *props.TableName + d.env
+	tableName := config.StackName + "__" + *props.TableName + d.env
 
 	return awsdynamodb.NewTableV2(d, &tableName, &awsdynamodb.TablePropsV2{
 		TableName:              &tableName,

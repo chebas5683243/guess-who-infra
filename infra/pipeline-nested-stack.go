@@ -1,6 +1,9 @@
 package infra
 
 import (
+	"github.com/chebas5683243/guess-who-infra/config"
+	"github.com/chebas5683243/guess-who-infra/environment"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscodebuild"
 	"github.com/aws/aws-cdk-go/awscdk/v2/awscodepipeline"
@@ -8,7 +11,6 @@ import (
 	"github.com/aws/aws-cdk-go/awscdk/v2/awsiam"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
-	"github.com/chebas5683243/guess-who-infra/environment"
 )
 
 type GithubConfig struct {
@@ -211,5 +213,5 @@ func (nestedStack *PipelineNestedStack) getEnvironmentStackFromEnv(env environme
 }
 
 func (nestedStack *PipelineNestedStack) generateStackResourceName(name string) string {
-	return *awscdk.Stack_Of(nestedStack).StackName() + name
+	return config.StackName + name
 }

@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"github.com/chebas5683243/guess-who-infra/config"
 	"github.com/chebas5683243/guess-who-infra/customconstructs"
 	"github.com/chebas5683243/guess-who-infra/environment"
 
@@ -106,7 +107,7 @@ func (nestedStack *EnvironmentNestedStack) createDynamoTables() {
 }
 
 func (nestedStack *EnvironmentNestedStack) createApiGateway() {
-	fullApiName := *awscdk.Stack_Of(nestedStack).StackName() + "ApiGateway" + string(nestedStack.env)
+	fullApiName := config.StackName + "ApiGateway" + string(nestedStack.env)
 	api := awsapigateway.NewRestApi(nestedStack, &fullApiName, &awsapigateway.RestApiProps{
 		RestApiName: &fullApiName,
 		DeployOptions: &awsapigateway.StageOptions{

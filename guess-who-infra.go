@@ -62,7 +62,8 @@ func main() {
 
 	NewGuessWhoInfraStack(app, config.StackName, &GuessWhoInfraStackProps{
 		awscdk.StackProps{
-			Env: env(),
+			Env:       env(),
+			StackName: jsii.String(config.StackName),
 		},
 	})
 
