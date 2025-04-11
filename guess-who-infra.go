@@ -3,20 +3,18 @@ package main
 import (
 	"os"
 
+	"github.com/chebas5683243/guess-who-infra/config"
+	"github.com/chebas5683243/guess-who-infra/environment"
+	"github.com/chebas5683243/guess-who-infra/infra"
+
 	"github.com/aws/aws-cdk-go/awscdk/v2"
-	"github.com/aws/aws-cdk-go/awscdk/v2/awsdynamodb"
 	"github.com/aws/constructs-go/constructs/v10"
 	"github.com/aws/jsii-runtime-go"
 	"github.com/joho/godotenv"
 )
 
-const (
-	AppName = "GuessWho"
-)
-
 type GuessWhoInfraStackProps struct {
 	awscdk.StackProps
-	Environment string
 }
 
 func NewGuessWhoInfraStack(scope constructs.Construct, id string, props *GuessWhoInfraStackProps) awscdk.Stack {
@@ -26,42 +24,29 @@ func NewGuessWhoInfraStack(scope constructs.Construct, id string, props *GuessWh
 	}
 	stack := awscdk.NewStack(scope, &id, &sprops)
 
-	infra := NewInfra(stack, props.Environment)
+	developmentStack := infra.NewEnvironmentNestedStack(stack, &infra.EnvironmentNestedStackProps{
+		Environment: environment.Development,
+	})
+	developmentStack.CreateInfraestructure()
 
-	usersTable := infra.CreateDynamoTable(
-		"Users",
-		&awsdynamodb.Attribute{
-			Name: jsii.String("id"),
-			Type: awsdynamodb.AttributeType_STRING,
+	productionStack := infra.NewEnvironmentNestedStack(stack, &infra.EnvironmentNestedStackProps{
+		Environment: environment.Production,
+	})
+	productionStack.CreateInfraestructure()
+
+	pipelineStack := infra.NewPipelineNestedStack(stack, "PipelineStack", &infra.PipelineNestedStackProps{
+		GithubConfig: infra.GithubConfig{
+			Owner:  os.Getenv("GITHUB_OWNER"),
+			Repo:   os.Getenv("GITHUB_REPO"),
+			Token:  os.Getenv("GITHUB_TOKEN"),
+			Branch: os.Getenv("GITHUB_BRANCH"),
 		},
-		nil)
-
-	gameTable := infra.CreateDynamoTable(
-		"Game",
-		&awsdynamodb.Attribute{
-			Name: jsii.String("id"),
-			Type: awsdynamodb.AttributeType_STRING,
+		Stacks: infra.Stacks{
+			Development: developmentStack,
+			Production:  productionStack,
 		},
-		nil)
-
-	playerTable := infra.CreateDynamoTable(
-		"Player",
-		&awsdynamodb.Attribute{
-			Name: jsii.String("gameId"),
-			Type: awsdynamodb.AttributeType_STRING,
-		},
-		&awsdynamodb.Attribute{
-			Name: jsii.String("id"),
-			Type: awsdynamodb.AttributeType_STRING,
-		})
-
-	lambda := infra.CreateLambda(AppName + "Lambda")
-
-	usersTable.GrantReadWriteData(lambda)
-	gameTable.GrantReadWriteData(lambda)
-	playerTable.GrantReadWriteData(lambda)
-
-	infra.CreateApiGateway(AppName+"Api", lambda)
+	})
+	pipelineStack.CreateInfraestructure()
 
 	return stack
 }
@@ -75,26 +60,10 @@ func main() {
 
 	app := awscdk.NewApp(nil)
 
-	NewGuessWhoInfraStack(app, AppName+"InfraStackDev", &GuessWhoInfraStackProps{
-		StackProps: awscdk.StackProps{
+	NewGuessWhoInfraStack(app, config.StackName, &GuessWhoInfraStackProps{
+		awscdk.StackProps{
 			Env: env(),
 		},
-		Environment: "Dev",
-	})
-
-	NewGuessWhoInfraStack(app, AppName+"InfraStackProd", &GuessWhoInfraStackProps{
-		StackProps: awscdk.StackProps{
-			Env: env(),
-		},
-		Environment: "Prod",
-	})
-
-	NewPipelineStack(app, AppName+"PipelineStack", &PipelineStackProps{
-		StackProps: awscdk.StackProps{
-			Env: env(),
-		},
-		GitHubOwner: os.Getenv("GITHUB_OWNER"),
-		GitHubRepo:  os.Getenv("GITHUB_REPO"),
 	})
 
 	app.Synth(nil)
