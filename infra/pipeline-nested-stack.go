@@ -113,6 +113,11 @@ func (nestedStack *PipelineNestedStack) createBuildStage() {
 			BuildSpec: awscodebuild.BuildSpec_FromObject(&map[string]any{
 				"version": "0.2",
 				"phases": map[string]any{
+					"install": map[string]any{
+						"runtime-versions": map[string]any{
+							"golang": "1.24",
+						},
+					},
 					"pre_build": map[string]any{
 						"commands": []string{
 							"go mod tidy",
@@ -121,14 +126,15 @@ func (nestedStack *PipelineNestedStack) createBuildStage() {
 					"build": map[string]any{
 						"commands": []string{
 							"go test ./...",
-							"GOOS=linux GOARCH=amd64 go build -o build/bootstrap",
-							"chmod +x build/bootstrap",
+							"GOOS=linux GOARCH=amd64 go build -o bootstrap",
+							"chmod +x bootstrap",
+							"zip bootstrap.zip bootstrap",
 						},
 					},
 				},
 				"artifacts": map[string]any{
 					"files": []string{
-						"build/bootstrap",
+						"bootstrap.zip",
 					},
 				},
 			}),
@@ -186,10 +192,9 @@ func (nestedStack *PipelineNestedStack) createDeploymentAction(env environment.E
 				"phases": map[string]any{
 					"build": map[string]any{
 						"commands": []string{
-							"aws lambda update-function-code " +
-								"--function-name " + *environmentStack.Lambda.FunctionName() +
-								" --s3-bucket " + *nestedStack.artifactBucket.BucketName() +
-								" --s3-key " + "build/bootstrap",
+							"aws lambda update-function-code" +
+								" --function-name " + *environmentStack.Lambda.FunctionName() +
+								" --zip-file " + "fileb://bootstrap.zip",
 						},
 					},
 				},
