@@ -30,3 +30,6 @@ cdk.context.json
 # Executables
 guess-who-infra
 **/bootstrap
+
+# Mac
+.DS_Store
