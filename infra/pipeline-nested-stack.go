@@ -126,8 +126,7 @@ func (nestedStack *PipelineNestedStack) createBuildStage() {
 					"build": map[string]any{
 						"commands": []string{
 							"go test ./...",
-							"GOOS=linux GOARCH=amd64 go build -o bootstrap",
-							"chmod +x bootstrap",
+							"./build.sh",
 							"zip bootstrap.zip bootstrap",
 						},
 					},

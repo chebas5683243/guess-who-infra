@@ -112,8 +112,16 @@ func (nestedStack *EnvironmentNestedStack) createApiGateway() {
 		},
 	})
 
-	api.Root().AddMethod(
-		jsii.String("ANY"),
+	healthResource := api.Root().AddResource(jsii.String("health"), &awsapigateway.ResourceOptions{})
+
+	healthResource.AddMethod(
+		jsii.String("GET"),
 		awsapigateway.NewLambdaIntegration(nestedStack.Lambda, &awsapigateway.LambdaIntegrationOptions{}),
-		&awsapigateway.MethodOptions{})
+		&awsapigateway.MethodOptions{},
+	)
+	healthResource.AddMethod(
+		jsii.String("POST"),
+		awsapigateway.NewLambdaIntegration(nestedStack.Lambda, &awsapigateway.LambdaIntegrationOptions{}),
+		&awsapigateway.MethodOptions{},
+	)
 }
